@@ -2,6 +2,7 @@ build
 cmake-build-debug
 cmake-build-release
 .vscode
+.cache
 FastDeploy.cmake
 build-debug.sh
 *dist
