@@ -1,0 +1,22 @@
+{
+    "python.defaultInterpreterPath": "/opt/conda/envs/pyenv/bin/python",
+    "cmake.configureSettings": {
+        "CMAKE_INSTALL_PREFIX": "install",
+        "Python3_EXECUTABLE": "/opt/conda/envs/pyenv/bin/python",
+        "ENABLE_ORT_BACKEND": "ON",
+        "ENABLE_VISION": "ON",
+        "ENABLE_TEXT": "ON",
+        "WITH_TESTING": "ON",
+        // "WITH_TESTING": "OFF",
+        "BUILD_EXAMPLES": "ON",
+        "WITH_IPU": "ON",
+    },
+    "cmake.generator": "Unix Makefiles",
+    // "cmake.generator": "Ninja",
+    "python.analysis.extraPaths": [
+        // "${workspaceFolder}/python/"
+    ],
+    "terminal.integrated.env.linux": {
+        // "PYTHONPATH": "${workspaceFolder}/python",
+    },
+}
