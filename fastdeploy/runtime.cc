@@ -37,6 +37,10 @@
 #include "fastdeploy/backends/lite/lite_backend.h"
 #endif
 
+#ifdef WITH_IPU
+#include "fastdeploy/backends/popart/popart_backend.h"
+#endif
+
 namespace fastdeploy {
 
 std::vector<Backend> GetAvailableBackends() {
@@ -55,6 +59,9 @@ std::vector<Backend> GetAvailableBackends() {
 #endif
 #ifdef ENABLE_LITE_BACKEND
   backends.push_back(Backend::LITE);
+#endif
+#ifdef WITH_IPU
+  backends.push_back(Backend::PopART);
 #endif
   return backends;
 }
@@ -193,6 +200,11 @@ void RuntimeOption::UseGpu(int gpu_id) {
 
 void RuntimeOption::UseCpu() { device = Device::CPU; }
 
+void RuntimeOption::UseIpu() {
+  device = Device::IPU;
+  backend = Backend::PopART;
+}
+
 void RuntimeOption::SetCpuThreadNum(int thread_num) {
   FDASSERT(thread_num > 0, "The thread_num must be greater than 0.");
   cpu_thread_num = thread_num;
@@ -325,6 +337,8 @@ bool Runtime::Init(const RuntimeOption& _option) {
       option.backend = Backend::PDINFER;
     } else if (IsBackendAvailable(Backend::OPENVINO)) {
       option.backend = Backend::OPENVINO;
+    } else if (IsBackendAvailable(Backend::PopART)) {
+      option.backend = Backend::PopART;
     } else {
       FDERROR << "Please define backend in RuntimeOption, current it's "
                  "Backend::UNKNOWN."
@@ -365,6 +379,12 @@ bool Runtime::Init(const RuntimeOption& _option) {
              "Backend::LITE only supports Device::CPU");
     CreateLiteBackend();
     FDINFO << "Runtime initialized with Backend::LITE in " << Str(option.device)
+           << "." << std::endl;
+  } else if (option.backend == Backend::PopART) {
+    FDASSERT(option.device == Device::IPU,
+             "Backend::PopART only supports Device::IPU");
+    CreatePopARTBackend();
+    FDINFO << "Runtime initialized with Backend::PopART in " << Str(option.device)
            << "." << std::endl;
   } else {
     FDERROR << "Runtime only support "
@@ -537,6 +557,27 @@ void Runtime::CreateLiteBackend() {
   FDASSERT(false,
            "LiteBackend is not available, please compiled with "
            "ENABLE_LITE_BACKEND=ON.");
+#endif
+}
+
+void Runtime::CreatePopARTBackend() {
+#ifdef WITH_IPU
+  auto ort_option = PopartBackendOption();
+
+  backend_ = utils::make_unique<PopartBackend>();
+  auto casted_backend = dynamic_cast<PopartBackend*>(backend_.get());
+  if (option.model_format == ModelFormat::ONNX) {
+    FDASSERT(casted_backend->InitFromOnnx(option.model_file, ort_option),
+             "Load model from ONNX failed while initliazing OrtBackend.");
+  } else {
+    FDASSERT(casted_backend->InitFromPaddle(option.model_file,
+                                            option.params_file, ort_option),
+             "Load model from Paddle failed while initliazing OrtBackend.");
+  }
+#else
+  FDASSERT(false,
+           "PopartBackend is not available, please compiled with "
+           "WITH_IPU=ON.");
 #endif
 }
 

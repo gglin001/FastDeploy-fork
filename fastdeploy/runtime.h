@@ -40,6 +40,7 @@ enum Backend {
   PDINFER,  ///< Paddle Inference, support Paddle format model, CPU / Nvidia GPU
   OPENVINO,  ///< Intel OpenVINO, support Paddle/ONNX format, CPU only
   LITE,  ///< Paddle Lite, support Paddle format model, ARM CPU only
+  PopART,
 };
 
 /*! Deep learning model format */
@@ -99,6 +100,9 @@ struct FASTDEPLOY_DECL RuntimeOption {
 
   /// Use Nvidia GPU to inference
   void UseGpu(int gpu_id = 0);
+
+  /// Use Graphcore IPU to inference
+  void UseIpu();
 
   /*
    * @brief Set number of cpu threads while inference on CPU, by default it will decided by the different backends
@@ -193,6 +197,8 @@ struct FASTDEPLOY_DECL RuntimeOption {
    * @brief Set cache file path while use TensorRT backend. Loadding a Paddle/ONNX model and initialize TensorRT will take a long time, by this interface it will save the tensorrt engine to `cache_file_path`, and load it directly while execute the code again
    */
   void SetTrtCacheFile(const std::string& cache_file_path);
+
+  // TODO add cache option for IPU
 
   Backend backend = Backend::UNKNOWN;
   // for cpu inference and preprocess
@@ -291,6 +297,7 @@ struct FASTDEPLOY_DECL Runtime {
   void CreateTrtBackend();
   void CreateOpenVINOBackend();
   void CreateLiteBackend();
+  void CreatePopARTBackend();
   std::unique_ptr<BaseBackend> backend_;
 };
 }  // namespace fastdeploy

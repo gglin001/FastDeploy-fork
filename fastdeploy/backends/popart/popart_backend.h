@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "fastdeploy/backends/backend.h"
-#include "popart/builder.hpp"
 #include "popart/session.hpp"
 
 namespace fastdeploy {

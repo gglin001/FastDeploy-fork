@@ -15,6 +15,9 @@
 PROJECT(fastdeploy C CXX)
 CMAKE_MINIMUM_REQUIRED (VERSION 3.10)
 
+# CMP0002
+cmake_policy(SET CMP0002 OLD)
+
 option(CSRCS_DIR_NAME "Name of source code directory")
 option(LIBRARY_NAME "Name of build library name")
 option(PY_LIBRARY_NAME "Name of build python library name")
@@ -305,6 +308,9 @@ if (WITH_IPU)
   find_package(popart REQUIRED COMPONENTS popart-only)
   list(APPEND DEPEND_LIBS popart-only)
   list(APPEND ALL_DEPLOY_SRCS ${DEPLOY_IPU_SRCS})
+  add_definitions(-DWITH_IPU)
+  # add_definitions(-DONNX_NAMESPACE=paddle2onnx)
+  add_definitions(-DONNX_NAMESPACE=onnx)
 endif()
 
 if(ENABLE_VISION)
@@ -434,7 +440,7 @@ elseif(ANDROID)
 else()
   install(
     TARGETS ${LIBRARY_NAME}
-    LIBRARY DESTINATION lib
+    LIBRARY DESTINATION install/lib
   )
 endif()
 install(

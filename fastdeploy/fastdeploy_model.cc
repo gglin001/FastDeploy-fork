@@ -34,21 +34,32 @@ bool FastDeployModel::InitRuntime() {
     }
 
     bool use_gpu = (runtime_option.device == Device::GPU);
+    bool use_ipu = (runtime_option.device == Device::IPU);
 #ifndef WITH_GPU
     use_gpu = false;
+#endif
+#ifndef WITH_IPU
+    use_ipu = false;
 #endif
 
     // whether the model is supported by the setted backend
     bool is_supported = false;
     if (use_gpu) {
-      for (auto& item : valid_gpu_backends) {
+      for (auto &item : valid_gpu_backends) {
+        if (item == runtime_option.backend) {
+          is_supported = true;
+          break;
+        }
+      }
+    } else if (use_ipu) {
+      for (auto &item : valid_ipu_backends) {
         if (item == runtime_option.backend) {
           is_supported = true;
           break;
         }
       }
     } else {
-      for (auto& item : valid_cpu_backends) {
+      for (auto &item : valid_cpu_backends) {
         if (item == runtime_option.backend) {
           is_supported = true;
           break;
@@ -90,6 +101,8 @@ bool FastDeployModel::InitRuntime() {
             << std::endl;
     return false;
 #endif
+  } else if (runtime_option.device == Device::IPU) {
+    return CreateIpuBackend();
   }
   FDERROR << "Only support CPU/GPU now." << std::endl;
   return false;
@@ -142,8 +155,31 @@ bool FastDeployModel::CreateGpuBackend() {
   return false;
 }
 
-bool FastDeployModel::Infer(std::vector<FDTensor>& input_tensors,
-                            std::vector<FDTensor>* output_tensors) {
+bool FastDeployModel::CreateIpuBackend() {
+  if (valid_cpu_backends.size() == 0) {
+    FDERROR << "There's no valid ipu backends for model: " << ModelName()
+            << std::endl;
+    return false;
+  }
+
+  for (size_t i = 0; i < valid_ipu_backends.size(); ++i) {
+    if (!IsBackendAvailable(valid_ipu_backends[i])) {
+      continue;
+    }
+    runtime_option.backend = valid_ipu_backends[i];
+    runtime_ = std::unique_ptr<Runtime>(new Runtime());
+    if (!runtime_->Init(runtime_option)) {
+      return false;
+    }
+    runtime_initialized_ = true;
+    return true;
+  }
+  FDERROR << "Found no valid backend for model: " << ModelName() << std::endl;
+  return false;
+}
+
+bool FastDeployModel::Infer(std::vector<FDTensor> &input_tensors,
+                            std::vector<FDTensor> *output_tensors) {
   TimeCounter tc;
   if (enable_record_time_of_runtime_) {
     tc.Start();
@@ -200,4 +236,4 @@ std::map<std::string, float> FastDeployModel::PrintStatisInfoOfRuntime() {
   statis_info_of_runtime_dict["iterations"] = time_of_runtime_.size();
   return statis_info_of_runtime_dict;
 }
-}  // namespace fastdeploy
+} // namespace fastdeploy
