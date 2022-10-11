@@ -126,7 +126,7 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
   std::map<popart::TensorId, FDIArray> input_wrappers;
   for (size_t i = 0; i < inputs.size(); i++) {
     auto tensor_id = inputs.at(i).name;
-    input_wrappers.emplace(tensor_id, PdIArray(inputs[i]));
+    input_wrappers.emplace(tensor_id, FDIArray(inputs[i]));
     popart_inputs.emplace(tensor_id, input_wrappers.at(tensor_id));
   }
 
@@ -136,7 +136,7 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
   for (size_t i = 0; i < outputs->size(); i++) {
     auto tensor = outputs->at(i);
     auto tensor_id = tensor.name;
-    anchor_wrappers.emplace(tensor_id, PdIArray(tensor));
+    anchor_wrappers.emplace(tensor_id, FDIArray(tensor));
     popart_anchors.emplace(tensor_id, anchor_wrappers.at(tensor_id));
   }
 
