@@ -115,46 +115,59 @@ bool PopartBackend::InitFromOnnx(const std::string &model_file,
   Ort::MemoryInfo memory_info("Cpu", OrtDeviceAllocator, 0, OrtMemTypeDefault);
   Ort::Allocator allocator(session_, memory_info);
   size_t n_inputs = session_.GetInputCount();
-  auto input_names = std::vector<std::string>();
   for (size_t i = 0; i < n_inputs; ++i) {
     auto input_name = session_.GetInputName(i, allocator);
     std::cout << "input_name:" << input_name << "\n";
-    input_names.push_back(input_name);
+    input_names_.push_back(input_name);
   }
 
   size_t n_outputs = session_.GetOutputCount();
-  auto output_names = std::vector<std::string>();
   for (size_t i = 0; i < n_outputs; ++i) {
     auto output_name = session_.GetOutputName(i, allocator);
     std::cout << "output_name:" << output_name << "\n";
-    output_names.push_back(output_name);
+    output_names_.push_back(output_name);
   }
-  auto dataFlow =
-      popart::DataFlow(1, {{output_names[0], popart::AnchorReturnType("ALL")}});
+  auto dataFlow = popart::DataFlow(
+      1, {{output_names_[0], popart::AnchorReturnType("ALL")}});
 
   auto ipuModelDevice =
       popart::DeviceManager::createDeviceManager().acquireAvailableDevice(1);
   auto inputShapeInfo = popart::InputShapeInfo();
-  inputShapeInfo.add(input_names[0], popart::TensorInfo(popart::DataType::FLOAT,
-                                                        {1, 3, 224, 224}));
+  inputShapeInfo.add(
+      input_names_[0],
+      popart::TensorInfo(popart::DataType::FLOAT, {1, 3, 224, 224}));
+
+  auto opts = popart::SessionOptions();
+  opts.enableEngineCaching = true;
+  opts.cachePath = "popef_cacche";
 
   std::cout << "InferenceSession::createFromOnnxModel ...\n";
   prt_session_ = popart::InferenceSession::createFromOnnxModel(
-      model_file, dataFlow, ipuModelDevice, inputShapeInfo);
+      model_file, dataFlow, ipuModelDevice, inputShapeInfo, opts);
   std::cout << "fin InferenceSession::createFromOnnxModel ...\n";
+
   std::cout << "prepareDevice ...\n";
   prt_session_->prepareDevice();
   std::cout << "fin prepareDevice ...\n";
+
+  prt_session_->modelToHost("session_model.onnx");
+
   return true;
 }
 
 bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
                           std::vector<FDTensor> *outputs) {
+  std::cout << "enter PopartBackend::Infer\n";
+
   // inputs
   std::map<popart::TensorId, popart::IArray &> popart_inputs;
   std::map<popart::TensorId, FDIArray> input_wrappers;
   for (size_t i = 0; i < inputs.size(); i++) {
-    auto tensor_id = inputs.at(i).name;
+    // auto tensor_id = inputs.at(i).name;
+    auto tensor = inputs.at(i);
+    auto tensor_id = input_names_.at(i);
+    std::cout << "input_tensor " << tensor_id << " shape: " << tensor.shape
+              << "\n";
     input_wrappers.emplace(tensor_id, FDIArray(inputs[i]));
     popart_inputs.emplace(tensor_id, input_wrappers.at(tensor_id));
   }
@@ -164,7 +177,16 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
   std::map<popart::TensorId, FDIArray> anchor_wrappers;
   for (size_t i = 0; i < outputs->size(); i++) {
     auto tensor = outputs->at(i);
-    auto tensor_id = tensor.name;
+    // auto tensor_id = tensor.name;
+    auto tensor_id = output_names_.at(i);
+
+    auto tensor_info = prt_session_->getInfo(tensor_id);
+    // debug
+    tensor.Allocate(tensor_info.shape(), FDDataType::FP32);
+
+    std::cout << "output_tensor " << tensor_id << " shape: " << tensor.shape
+              << "\n";
+
     anchor_wrappers.emplace(tensor_id, FDIArray(tensor));
     popart_anchors.emplace(tensor_id, anchor_wrappers.at(tensor_id));
   }

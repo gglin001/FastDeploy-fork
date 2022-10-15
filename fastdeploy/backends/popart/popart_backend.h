@@ -62,6 +62,9 @@ private:
   PopartBackendOption option_;
   std::unique_ptr<popart::Session> prt_session_;
 
+  std::vector<std::string> input_names_;
+  std::vector<std::string> output_names_;
+
   Ort::Env env_;
   Ort::Session session_{nullptr};
   Ort::SessionOptions session_options_;
