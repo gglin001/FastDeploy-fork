@@ -14,6 +14,30 @@
 
 #include "fastdeploy/vision.h"
 
+void IpuInfer(const std::string& model_file, const std::string& image_file) {
+  auto option = fastdeploy::RuntimeOption();
+  option.UseIpu();
+
+  auto model = fastdeploy::vision::detection::NanoDetPlus(model_file, "", option);
+  if (!model.Initialized()) {
+    std::cerr << "Failed to initialize." << std::endl;
+    return;
+  }
+
+  auto im = cv::imread(image_file);
+  auto im_bak = im.clone();
+
+  fastdeploy::vision::DetectionResult res;
+  if (!model.Predict(&im, &res)) {
+    std::cerr << "Failed to predict." << std::endl;
+    return;
+  }
+  std::cout << res.Str() << std::endl;
+  auto vis_im = fastdeploy::vision::Visualize::VisDetection(im_bak, res);
+  cv::imwrite("vis_result.jpg", vis_im);
+  std::cout << "Visualized result saved in ./vis_result.jpg" << std::endl;
+}
+
 void CpuInfer(const std::string& model_file, const std::string& image_file) {
   auto model = fastdeploy::vision::detection::NanoDetPlus(model_file);
   if (!model.Initialized()) {
@@ -98,12 +122,14 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-  if (std::atoi(argv[3]) == 0) {
-    CpuInfer(argv[1], argv[2]);
-  } else if (std::atoi(argv[3]) == 1) {
-    GpuInfer(argv[1], argv[2]);
-  } else if (std::atoi(argv[3]) == 2) {
-    TrtInfer(argv[1], argv[2]);
-  }
+  IpuInfer(argv[1], argv[2]);
+
+  // if (std::atoi(argv[3]) == 0) {
+  //   CpuInfer(argv[1], argv[2]);
+  // } else if (std::atoi(argv[3]) == 1) {
+  //   GpuInfer(argv[1], argv[2]);
+  // } else if (std::atoi(argv[3]) == 2) {
+  //   TrtInfer(argv[1], argv[2]);
+  // }
   return 0;
 }

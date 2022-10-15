@@ -18,6 +18,7 @@
 #include <popart/datatype.hpp>
 
 #include "fastdeploy/backends/ort/utils.h"
+#include "fastdeploy/core/fd_tensor.h"
 #include "fastdeploy/core/float16.h"
 #include "fastdeploy/utils/utils.h"
 #ifdef ENABLE_PADDLE_FRONTEND
@@ -110,7 +111,8 @@ bool PopartBackend::InitFromOnnx(const std::string &model_file,
                                  bool from_memory_buffer) {
   // auto builder = popart::Builder::createFromOnnxModel(model_file);
 
-  session_ = {env_, model_file.data(), model_file.size(), session_options_};
+  session_ = {env_, model_file.c_str(), session_options_};
+  // session_ = {env_, model_file.data(), model_file.size(), session_options_};
 
   Ort::MemoryInfo memory_info("Cpu", OrtDeviceAllocator, 0, OrtMemTypeDefault);
   Ort::Allocator allocator(session_, memory_info);
@@ -133,9 +135,14 @@ bool PopartBackend::InitFromOnnx(const std::string &model_file,
   auto ipuModelDevice =
       popart::DeviceManager::createDeviceManager().acquireAvailableDevice(1);
   auto inputShapeInfo = popart::InputShapeInfo();
+
+  // inputShapeInfo.add(
+  //     input_names_[0],
+  //     popart::TensorInfo(popart::DataType::FLOAT, {1, 3, 224, 224}));
+
   inputShapeInfo.add(
       input_names_[0],
-      popart::TensorInfo(popart::DataType::FLOAT, {1, 3, 224, 224}));
+      popart::TensorInfo(popart::DataType::FLOAT, {1, 3, 320, 320}));
 
   auto opts = popart::SessionOptions();
   opts.enableEngineCaching = true;
@@ -175,8 +182,15 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
   // anchors
   std::map<popart::TensorId, popart::IArray &> popart_anchors;
   std::map<popart::TensorId, FDIArray> anchor_wrappers;
+  // for (size_t i = 0; i < outputs->size(); i++) {
+
+  if (outputs->size() < 1) {
+    outputs->push_back(FDTensor());
+  }
+
   for (size_t i = 0; i < outputs->size(); i++) {
-    auto tensor = outputs->at(i);
+    // use reference !
+    auto &tensor = outputs->at(i);
     // auto tensor_id = tensor.name;
     auto tensor_id = output_names_.at(i);
 
@@ -186,6 +200,7 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
 
     std::cout << "output_tensor " << tensor_id << " shape: " << tensor.shape
               << "\n";
+    std::cout << "output_tensor.nlems: " << tensor.Numel() << "\n";
 
     anchor_wrappers.emplace(tensor_id, FDIArray(tensor));
     popart_anchors.emplace(tensor_id, anchor_wrappers.at(tensor_id));
