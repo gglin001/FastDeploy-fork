@@ -108,8 +108,8 @@ bool PopartBackend::InitFromPaddle(const std::string &model_file,
 bool PopartBackend::InitFromOnnx(const std::string &model_file,
                                  const PopartBackendOption &option,
                                  bool from_memory_buffer) {
+  // auto builder = popart::Builder::createFromOnnxModel(model_file);
 
-  // session_ = {env_, model_file.c_str(), session_options_};
   session_ = {env_, model_file.data(), model_file.size(), session_options_};
 
   Ort::MemoryInfo memory_info("Cpu", OrtDeviceAllocator, 0, OrtMemTypeDefault);
@@ -131,21 +131,6 @@ bool PopartBackend::InitFromOnnx(const std::string &model_file,
   }
   auto dataFlow =
       popart::DataFlow(1, {{output_names[0], popart::AnchorReturnType("ALL")}});
-
-  // TODO use ort session get i/o info
-
-  // auto builder = popart::Builder::createFromOnnxModel(model_file);
-  // auto input_ids = builder->getInputTensorIds();
-  // for (auto x : input_ids) {
-  //   std::cout << "input_id:" << x << "\n";
-  // }
-  // return true;
-
-  // // auto out = GetOutputInfo(0);
-  // // auto o = out.name;
-  // auto o = std::string{"batch_norm_42.tmp_0"};
-  // auto dataFlow = popart::DataFlow(1, {{o,
-  // popart::AnchorReturnType("ALL")}});
 
   auto ipuModelDevice =
       popart::DeviceManager::createDeviceManager().acquireAvailableDevice(1);
