@@ -22,6 +22,8 @@
 #include "fastdeploy/backends/backend.h"
 #include "popart/session.hpp"
 
+#include "onnxruntime_cxx_api.h" // NOLINT
+
 namespace fastdeploy {
 
 struct PopartBackendOption {
@@ -58,6 +60,10 @@ public:
 
 private:
   PopartBackendOption option_;
-  std::unique_ptr<popart::Session> session_;
+  std::unique_ptr<popart::Session> prt_session_;
+
+  Ort::Env env_;
+  Ort::Session session_{nullptr};
+  Ort::SessionOptions session_options_;
 };
 } // namespace fastdeploy

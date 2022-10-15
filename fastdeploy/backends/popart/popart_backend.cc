@@ -108,14 +108,58 @@ bool PopartBackend::InitFromPaddle(const std::string &model_file,
 bool PopartBackend::InitFromOnnx(const std::string &model_file,
                                  const PopartBackendOption &option,
                                  bool from_memory_buffer) {
-  auto out = GetOutputInfo(0);
-  auto o = out.name;
-  auto dataFlow = popart::DataFlow(1, {{o, popart::AnchorReturnType("ALL")}});
+
+  // session_ = {env_, model_file.c_str(), session_options_};
+  session_ = {env_, model_file.data(), model_file.size(), session_options_};
+
+  Ort::MemoryInfo memory_info("Cpu", OrtDeviceAllocator, 0, OrtMemTypeDefault);
+  Ort::Allocator allocator(session_, memory_info);
+  size_t n_inputs = session_.GetInputCount();
+  auto input_names = std::vector<std::string>();
+  for (size_t i = 0; i < n_inputs; ++i) {
+    auto input_name = session_.GetInputName(i, allocator);
+    std::cout << "input_name:" << input_name << "\n";
+    input_names.push_back(input_name);
+  }
+
+  size_t n_outputs = session_.GetOutputCount();
+  auto output_names = std::vector<std::string>();
+  for (size_t i = 0; i < n_outputs; ++i) {
+    auto output_name = session_.GetOutputName(i, allocator);
+    std::cout << "output_name:" << output_name << "\n";
+    output_names.push_back(output_name);
+  }
+  auto dataFlow =
+      popart::DataFlow(1, {{output_names[0], popart::AnchorReturnType("ALL")}});
+
+  // TODO use ort session get i/o info
+
+  // auto builder = popart::Builder::createFromOnnxModel(model_file);
+  // auto input_ids = builder->getInputTensorIds();
+  // for (auto x : input_ids) {
+  //   std::cout << "input_id:" << x << "\n";
+  // }
+  // return true;
+
+  // // auto out = GetOutputInfo(0);
+  // // auto o = out.name;
+  // auto o = std::string{"batch_norm_42.tmp_0"};
+  // auto dataFlow = popart::DataFlow(1, {{o,
+  // popart::AnchorReturnType("ALL")}});
+
   auto ipuModelDevice =
       popart::DeviceManager::createDeviceManager().acquireAvailableDevice(1);
-  session_ = popart::InferenceSession::createFromOnnxModel(model_file, dataFlow,
-                                                           ipuModelDevice);
-  session_->prepareDevice();
+  auto inputShapeInfo = popart::InputShapeInfo();
+  inputShapeInfo.add(input_names[0], popart::TensorInfo(popart::DataType::FLOAT,
+                                                        {1, 3, 224, 224}));
+
+  std::cout << "InferenceSession::createFromOnnxModel ...\n";
+  prt_session_ = popart::InferenceSession::createFromOnnxModel(
+      model_file, dataFlow, ipuModelDevice, inputShapeInfo);
+  std::cout << "fin InferenceSession::createFromOnnxModel ...\n";
+  std::cout << "prepareDevice ...\n";
+  prt_session_->prepareDevice();
+  std::cout << "fin prepareDevice ...\n";
   return true;
 }
 
@@ -142,7 +186,7 @@ bool PopartBackend::Infer(std::vector<FDTensor> &inputs,
 
   // run
   popart::StepIO stepio(popart_inputs, popart_anchors);
-  session_->run(stepio);
+  prt_session_->run(stepio);
 
   return true;
 }
